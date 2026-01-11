@@ -1,0 +1,1 @@
+参考本 repo 其他代码，在 demo 目录下建一个 python+html demo，用 silero-vad 作声学前端，然后利用声纹识别对过去五段声音（VAD 切的整句，不是 chunk）实时可视化出 distance matrix（缓存住前面段的 speaker embedding）. 另外把 VAD 开始结束/运行 speaker verification 模型调用开始结束，各事件统一可视化。各可配置项如 VAD 超参、speaker embedding distance threshold 等统一暴露到 html demo 的配置项 tab页。 
