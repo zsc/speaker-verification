@@ -34,17 +34,33 @@ supports = {
 
 
 class embedding:
-    def __init__(self, wav_file):
-        model_id = 'damo/speech_eres2net_sv_zh-cn_16k-common'
-        conf = supports[model_id]
-        pretrained_model = "./model/pretrained_eres2net_aug.ckpt"
-        pretrained_state = torch.load(pretrained_model,map_location="cuda:0")
+    def __init__(self, wav_file, model=None, feature_extractor=None):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+        
+        if model is not None:
+            self.embedding_model = model
+            self.feature_extractor = feature_extractor
+        else:
+            model_id = 'damo/speech_eres2net_sv_zh-cn_16k-common'
+            conf = supports[model_id]
+            
+            # Check if local model exists
+            pretrained_model = "./model/pretrained_eres2net_aug.ckpt"
+            if not os.path.exists(pretrained_model):
+                print(f"Local model not found at {pretrained_model}. Downloading from ModelScope...")
+                model_dir = snapshot_download(model_id, revision=conf['revision'])
+                pretrained_model = os.path.join(model_dir, conf['model_pt'])
+                print(f"Model downloaded to {pretrained_model}")
 
-        model = conf['model']
-        self.embedding_model = dynamic_import(model['obj'])(**model['args'])
-        self.embedding_model.load_state_dict(pretrained_state)
-        self.embedding_model.eval()
-        self.feature_extractor = FBank(80, sample_rate=16000, mean_nor=True)
+            pretrained_state = torch.load(pretrained_model, map_location=self.device)
+
+            model_conf = conf['model']
+            self.embedding_model = dynamic_import(model_conf['obj'])(**model_conf['args'])
+            self.embedding_model.load_state_dict(pretrained_state)
+            self.embedding_model.to(self.device)
+            self.embedding_model.eval()
+            self.feature_extractor = FBank(80, sample_rate=16000, mean_nor=True)
+            
         self.wav_file = wav_file
 
     def load_wav(self):
@@ -66,6 +82,7 @@ class embedding:
     def compute_embedding(self):
         wav = self.load_wav()
         feat = self.feature_extractor(wav).unsqueeze(0)
+        feat = feat.to(self.device)
         with torch.no_grad():
             embedding = self.embedding_model(feat).detach().cpu().numpy()
             return embedding

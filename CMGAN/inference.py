@@ -31,14 +31,15 @@ class enhancement:
         self.save_tracks = save_tracks
         self.save_dir = save_dir
 
-        self.model = generator.TSCNet(num_channel=64, num_features=n_fft // 2 + 1).cuda()
-        self.model.load_state_dict((torch.load(model_path)))
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = generator.TSCNet(num_channel=64, num_features=n_fft // 2 + 1).to(self.device)
+        self.model.load_state_dict((torch.load(model_path, map_location=self.device)))
         self.model.eval()
 
     @torch.no_grad()
     def enhance_one_tensor(self, model, audio_tensor):
         with torch.no_grad():
-            noisy = audio_tensor.cuda()
+            noisy = audio_tensor.to(self.device)
             c = torch.sqrt(noisy.size(-1) / torch.sum((noisy ** 2.0), dim=-1))
             noisy = torch.transpose(noisy, 0, 1)
             noisy = torch.transpose(noisy * c, 0, 1)
@@ -55,7 +56,7 @@ class enhancement:
                     batch_size += 1
                 noisy = torch.reshape(noisy, (batch_size, -1))
 
-            noisy_spec = torch.stft(noisy, n_fft, hop, window=torch.hamming_window(n_fft).cuda(), onesided=True,
+            noisy_spec = torch.stft(noisy, n_fft, hop, window=torch.hamming_window(n_fft).to(self.device), onesided=True,
                                     return_complex=False)
 
             torch.cuda.empty_cache()
@@ -68,7 +69,7 @@ class enhancement:
                 est_spec_uncompress,
                 n_fft,
                 hop,
-                window=torch.hamming_window(n_fft).cuda(),
+                window=torch.hamming_window(n_fft).to(self.device),
                 onesided=True
             )
             est_audio = est_audio / c

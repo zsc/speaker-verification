@@ -1,0 +1,16 @@
+flask
+flask-socketio
+torch
+torchaudio
+numpy<1.24
+scipy
+soundfile
+einops
+joblib
+pesq
+natsort
+matplotlib
+pydub
+eventlet
+modelscope
+datasets==2.21.0
